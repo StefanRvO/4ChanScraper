@@ -4,6 +4,10 @@ import urllib2
 import socket
 import urllib
 import os
+import time
+from multiprocessing import Pool
+Fetchedimages=0
+ImagesToFetch=0
 
 def FetchThreads(Boardurl,boardname):
     print Boardurl
@@ -37,6 +41,39 @@ def FetchThread(url): #Return list of image urls for this thread
         imagelines[i]="http://"+imagelines[i][:indexend]
     return imagelines
 
+def PoolImagesSub(hackystring): #Hacky subroutine to get threading working
+    imageurl=hackystring[:hackystring.index("010101010999991919191")]
+    savepath=hackystring[hackystring.index("010101010999991919191")+21:]
+
+    urllib.urlretrieve(imageurl,savepath)
+    return 1
+
+
+def PoolImages(imagelist,savepath):
+    global Fetchedimages
+    global ImagesToFetch
+    ImagesToFetch=len(imagelist)
+    if not os.path.exists(savepath):
+        print "Creating directory",savepath
+        os.makedirs(savepath)
+    hackylist=[]
+    for i in range(len(imagelist)):
+        hackylist.append(imagelist[i]+"010101010999991919191"+savepath+"/"+imagelist[i].split("/")[-1])
+    if len(imagelist)>100:
+        pool=Pool(processes=100)
+    else:
+        pool=Pool(processes=len(imagelist))
+    result=pool.imap_unordered(PoolImagesSub,hackylist)
+    while(1):
+        completed = result._index
+        if completed+1>=len(imagelist):
+            break
+        print "Downloaded", completed, "images out of",len(imagelist)
+        time.sleep(1)
+    print "Downloaded", len(imagelist), "images out of",len(imagelist)
+    print "Done!"
+    return 0
+
 def GrabImages(imagelist,savepath): #Grab images in imagelist and save the to savepath
     if not os.path.exists(savepath):
         print "Creating directory",savepath
@@ -45,7 +82,7 @@ def GrabImages(imagelist,savepath): #Grab images in imagelist and save the to sa
     for i in range(len(imagelist)):
         print "Downloading image",i+1,"out of",len(imagelist)
         urllib.urlretrieve(imagelist[i],savepath+"/"+imagelist[i].split("/")[-1])
-    return 0
+    return 1
 
 if "-b" == sys.argv[1]: #Fetch an entire board
     
@@ -74,14 +111,14 @@ if "-b" == sys.argv[1]: #Fetch an entire board
             Threads+=FetchThreads("http://boards.4chan.org/"+boardname+"/"+str(pagenum),boardname)
     images=[]
     for i in range(len(Threads)):
-        print "Searched",i,"threads out of",len(Threads),len(images), "images found so far"
+        print "Searched",i,"threads out of",str(len(Threads))+":",len(images), "images found so far"
         images+=FetchThread(Threads[i])
     print"Found a total of",len(images),"images!."
     if len(images)>500:
         print "Fetching. This probably gonna take a long time"
     else:
         print "Fetching."
-    GrabImages(images,boardname)
+    PoolImages(images,boardname)
     
     sys.exit(0)
     
@@ -95,12 +132,18 @@ else:
         #get thread number
         threadnumstart=threadurl.index("thread/")+7
         threadnum=threadurl[threadnumstart:]
+        threadend=-1
         for i in range(len(threadnum)):
             if not str(i) in ["1","2","3","4","5","6","7","8","9","0"]:
                 threadend=i-1
                 break
+        
         threadnum=threadnum[:threadend]
         if "/" in threadnum:
             threadnum=threadnum[:threadnum.index("/")]
-        GrabImages(images,threadnum)
+        if len(images)>500:
+            print "Fetching. This probably gonna take a long time"
+        else:
+            print "Fetching."
+        PoolImages(images,threadnum)
 

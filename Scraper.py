@@ -6,6 +6,7 @@ import urllib
 import os
 
 def FetchThreads(Boardurl,boardname):
+    print Boardurl
     f=urllib2.urlopen(Boardurl,None,5)
     site=f.read()
     f.close()
@@ -67,7 +68,10 @@ if "-b" == sys.argv[1]: #Fetch an entire board
             else:
                 Threads+=FetchThreads("http://boards.4chan.org/"+boardname+"/"+str(i),boardname)
     else:
-        Threads+=FetchThreads("http://boards.4chan.org/"+boardname+"/"+str(pagenum),boardname)
+        if pagenum==1:
+            Threads+=FetchThreads("http://boards.4chan.org/"+boardname+"/",boardname)
+        else:
+            Threads+=FetchThreads("http://boards.4chan.org/"+boardname+"/"+str(pagenum),boardname)
     images=[]
     for i in range(len(Threads)):
         print "Searched",i,"threads out of",len(Threads),len(images), "images found so far"
